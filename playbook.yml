@@ -1,0 +1,42 @@
+---
+- hosts: backends
+  gather_facts: no
+  vars:
+    vip_count: 0
+  tasks:
+  - name: Count vip interfaces on backends during deploy
+    block:
+      - name: Debug {{ vips['backend']['vip'] }}
+        debug:
+          msg: "{{ vips['backend']['vip'] }}"
+      - name: Check if vip {{ vips['backend']['vip'] }} is on backend
+        shell: ip a | grep -q "{{ vips['backend']['vip'] }}"
+        register: result
+        ignore_errors: yes
+      - name: Set vip_iface to 1 if defined
+        set_fact:
+          vip_iface: 1
+        when: result.rc == 0
+      - name: Set vip_iface to 0 if not defined
+        set_fact:
+          vip_iface: 0
+        when: result.rc != 0
+      - name: Debug defined {{ vips['backend']['vip'] }} vip interfaces
+        debug:
+          var: hostvars[item]['vip_iface'] | int 
+        with_items: "{{ groups['backends'] }}"
+        run_once: true  
+      - name: Get total vip interfaces count 
+        set_fact:
+          vip_count: "{{ vip_count | int + hostvars[item]['vip_iface'] | int }}"
+        with_items: "{{ groups['backends'] }}"
+        run_once: true
+      - name: Debug vip_counts
+        debug:
+          var: vip_count
+      - name: Fail if vip interface defined on more than one backend
+        fail:
+          msg: "ip-address {{ vips['backend']['vip'] }} is defined on {{ vip_count }} backends"
+        when: vip_count | int > 1
+        run_once: true
+    when: deploy is defined and deploy
