@@ -1,5 +1,5 @@
 vips:
   backend:
-    vip: 127.0.0.1 
+    vip: 10.0.0.15
  
 deploy: true
